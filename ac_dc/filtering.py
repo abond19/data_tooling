@@ -5,6 +5,7 @@ import numpy as np
 import fasttext
 
 import sentencepiece
+from tokenizers import Tokenizer
 import kenlm
 
 import pathlib
@@ -64,8 +65,7 @@ class LoadParameters:
             langs_id["dataset_id"] == lang_dataset_id, "sentencepiece_id"
         ].iloc[0]
         if sentencepiece_lang_id:
-            sentencepiece_model = sentencepiece.SentencePieceProcessor()
-            sentencepiece_model.load(path_sentencepiece_model)
+            sentencepiece_model = Tokenizer.from_file("spiece.tokenizer.tr.json")
         else:
             sentencepiece_model = None
         return sentencepiece_model
@@ -159,7 +159,7 @@ class ModifyingDocuments:
 
     @staticmethod
     def tokenization(document, sentencepiece_model, join_on_whitespace):
-        document_tokenized = sentencepiece_model.encode_as_pieces(document)
+        document_tokenized = sentencepiece_model.encode(document).tokens
         if join_on_whitespace:
             document_tokenized = " ".join(document_tokenized)
         return document_tokenized
@@ -842,6 +842,8 @@ class FunctionDatasetFiltering:
         self.path_fasttext_model = path_fasttext_model
         self.path_sentencepiece_model = path_sentencepiece_model
         self.path_kenlm_model = path_kenlm_model
+
+        print(lang_dataset_id)
 
         self.param = LoadParameters.load_parameters(lang_dataset_id)
         self.stopwords = LoadParameters.load_stopwords(lang_dataset_id)

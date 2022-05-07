@@ -46,8 +46,7 @@ def main(conf: str) -> None:
 
     if not os.path.exists(conf["output"]):
         os.makedirs(conf["output"], exist_ok=True)
-
-    urls = ds.map(
+    """urls = ds.map(
         lambda x: {
             "url": x["meta"]["headers"]["warc-target-uri"],
             "text": x["text"].replace("\n", " "),
@@ -55,25 +54,35 @@ def main(conf: str) -> None:
         num_proc=conf["num_proc"],
         desc="Extracting URLs",
     )
-    logger.info(
-        f"Extracted URLs: {len(urls['url'])}, Unique URLs: {len(set(urls['url']))}"
+    """
+    urls = ds.map(
+        lambda x: {
+            "text": x["text"].replace("\n", " "),
+        },
+        num_proc=conf["num_proc"],
+        desc="Extracting URLs",
     )
+    
+    #logger.info(
+    #   f"Extracted URLs: {len(urls['url'])}, Unique URLs: {len(set(urls['url']))}"
+    #)
 
     # Save text data for substring deduplication
-    urls.to_csv(
+    list(urls.items())[0][1].to_csv(
         os.path.join(conf["output"], "text.csv"),
         num_proc=conf["num_proc"],
         index=False,
         header=False,
         columns=["text"],
     )
-    urls.to_csv(
+    """
+    list(urls.items())[0][1].to_csv(
         os.path.join(conf["output"], "ids.csv"),
         num_proc=conf["num_proc"],
         index=False,
         header=False,
         columns=["id"],
-    )
+    )"""
 
     del urls
 
@@ -96,16 +105,16 @@ def main(conf: str) -> None:
         num_proc=conf["num_proc"],
         desc="Hashing",
     )
+    #print(ds['train']['__dedup_hash__'])
     logger.info(f"Done hashing {len(ds)} records")
-
+    HASH = '__dedup_hash__'
     logger.info(f"Start querying {len(ds)} records")
     matches = simhash.find_all(
-        tqdm(ds[INTERNAL_HASH], total=len(ds)),
+        tqdm(ds['train']['__dedup_hash__'], total=len(ds)),
         conf["num_blocks"],
         conf["hamming_distance"],
     )
     logger.info(f"Done querying {len(ds)} records, found {len(matches)} matches")
-
     graph = defaultdict(dict)
     dist = Counter()
     examples = defaultdict(set)
@@ -119,13 +128,13 @@ def main(conf: str) -> None:
     logger.info(f"Hash difference distribution: {dist}")
 
     hash2ids: Dict[int, Set[str]] = defaultdict(set)
-    hashes: Set[int] = set(ds[INTERNAL_HASH])
+    hashes: Set[int] = set(ds['train']['__dedup_hash__'])
     hash2cluster: Dict[int, int] = {}
     visited: Set[int] = set()
     cluster_id: int = 0
 
-    for id, hash in tqdm(
-        zip(ds[conf["index_column"]], ds[INTERNAL_HASH]), total=len(ds)
+    for hash in tqdm(
+        zip(ds['train']['__dedup_hash__']), total=len(ds)
     ):
         hash2ids[hash].add(id)
 
@@ -142,6 +151,7 @@ def main(conf: str) -> None:
                 o.write(f"{id1}\t{id2}\t{simhash.num_differing_bits(x, y)}\n")
 
     # print some match samples
+    """
     datasets.set_progress_bar_enabled(False)
     example_text = []
     for diff in tqdm(examples):
@@ -162,7 +172,7 @@ def main(conf: str) -> None:
             o.write("*" * 80 + "\n")
             for text in records:
                 o.write(f"\n({diff}) {text}\n")
-
+    """
     while hashes:
         hash = hashes.pop()
         if hash in visited:
@@ -192,8 +202,8 @@ def main(conf: str) -> None:
 
     with open(os.path.join(conf["output"], "clusters.tsv"), "w") as o:
         o.write(f"id\thash\tcluster\n")
-        for id, hash in tqdm(
-            zip(ds[conf["index_column"]], ds[INTERNAL_HASH]), total=len(ds)
+        for hash in tqdm(
+            zip(ds['train']['__dedup_hash__']), total=len(ds)
         ):
             o.write(f"{id}\t{hash}\t{hash2cluster.get(hash, -1)}\n")
 

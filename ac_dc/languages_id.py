@@ -3,6 +3,15 @@ import pandas as pd
 
 langs_id = [
     {
+        "lang": "Turkish",
+        "dataset_id": "tr",
+        "stopwords_id": "tr",
+        "flagged_words_id": "tr",
+        "fasttext_id": "tr",
+        "sentencepiece_id": "tr",
+        "kenlm_id": "tr",
+    },
+    {
         "lang": "Arabic",
         "dataset_id": "ar",
         "stopwords_id": "ar",
